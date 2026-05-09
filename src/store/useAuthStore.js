@@ -1,18 +1,21 @@
-import { create } from 'zustand';
+'use client';
 
-export const useAuthStore = create((set) => ({
-    token: typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null,
-    role: typeof window !== 'undefined' ? localStorage.getItem('user_role') : null,
+export const useAuthStore = () => {
+    const login = (token, role) => {
+        // Salvăm datele primite în memoria browserului, conform documentației
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('token', token);
+            localStorage.setItem('role', role);
+        }
+    };
 
-    login: (token, role) => {
-        localStorage.setItem('jwt_token', token);
-        localStorage.setItem('user_role', role);
-        set({ token, role });
-    },
+    const logout = () => {
+        // Ștergem datele când ieșim din cont
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('token');
+            localStorage.removeItem('role');
+        }
+    };
 
-    logout: () => {
-        localStorage.removeItem('jwt_token');
-        localStorage.removeItem('user_role');
-        set({ token: null, role: null });
-    }
-}));
+    return { login, logout };
+};
