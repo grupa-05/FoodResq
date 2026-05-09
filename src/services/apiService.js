@@ -12,7 +12,6 @@ const getAuthHeaders = () => {
 };
 
 export const apiService = {
-    // --- AUTENTIFICARE ---
     login: async (email, password) => {
         const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
             method: 'POST',
@@ -22,6 +21,7 @@ export const apiService = {
         if (!response.ok) throw new Error('Email sau parolă incorecte!');
         return response.json();
     },
+
     register: async (name, email, password, role) => {
         const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
             method: 'POST',
@@ -35,60 +35,56 @@ export const apiService = {
         return response.json();
     },
 
-    // --- OFERTE ---
     createListing: async (listingData) => {
         const response = await fetch(`${API_BASE_URL}/api/listings`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify(listingData)
         });
-        if (response.status === 403) throw new Error('Doar restaurantele (BUSINESS) pot adăuga oferte!');
         if (!response.ok) throw new Error('Eroare la crearea ofertei.');
         return response.json();
     },
-    reserveListing: async (id) => {
-        const response = await fetch(`${API_BASE_URL}/api/listings/${id}/reserve`, {
-            method: 'POST',
+
+    deleteListing: async (id) => {
+        const response = await fetch(`${API_BASE_URL}/api/listings/${id}`, {
+            method: 'DELETE',
             headers: getAuthHeaders()
         });
-        if (response.status === 401) throw new Error('Trebuie să fii logat pentru a rezerva!');
-        if (response.status === 403) throw new Error('Doar clienții simpli pot rezerva!');
-        if (!response.ok) throw new Error('Produsul nu mai este disponibil.');
-        return response.json();
+        if (!response.ok) throw new Error('Nu poți șterge această ofertă.');
     },
-    claimDonation: async (id) => {
-        const response = await fetch(`${API_BASE_URL}/api/listings/${id}/claim`, {
-            method: 'POST',
-            headers: getAuthHeaders()
-        });
-        if (response.status === 401) throw new Error('Trebuie să fii logat!');
-        if (response.status === 403) throw new Error('Doar ONG-urile pot revendica donații!');
-        if (!response.ok) throw new Error('Donația a fost deja preluată.');
+
+    getCart: async () => {
+        const response = await fetch(`${API_BASE_URL}/api/cart`, { method: 'GET', headers: getAuthHeaders() });
+        if (!response.ok) throw new Error('Eroare la încărcarea coșului.');
         return response.json();
     },
 
-    // --- COȘ DE CUMPĂRĂTURI & COMENZI ---
-    getCart: async () => {
-        const response = await fetch(`${API_BASE_URL}/api/cart`, { method: 'GET', headers: getAuthHeaders() });
-        if (!response.ok) throw new Error('Nu am putut încărca coșul.');
-        return response.json();
-    },
     addToCart: async (listingId, quantity = 1) => {
         const response = await fetch(`${API_BASE_URL}/api/cart/items`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({ listingId, quantity })
         });
-        if (!response.ok) throw new Error('Nu am putut adăuga în coș.');
+        if (!response.ok) throw new Error('Eroare la adăugarea în coș.');
     },
+
+    removeFromCart: async (itemId) => {
+        const response = await fetch(`${API_BASE_URL}/api/cart/items/${itemId}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        if (!response.ok) throw new Error('Eroare la ștergerea din coș.');
+    },
+
     checkout: async () => {
         const response = await fetch(`${API_BASE_URL}/api/cart/checkout`, { method: 'POST', headers: getAuthHeaders() });
-        if (!response.ok) throw new Error('Eroare la finalizarea comenzii.');
+        if (!response.ok) throw new Error('Eroare la checkout.');
         return response.json();
     },
+
     getMyOrders: async () => {
         const response = await fetch(`${API_BASE_URL}/api/orders/my`, { method: 'GET', headers: getAuthHeaders() });
-        if (!response.ok) throw new Error('Eroare la încărcarea comenzilor.');
+        if (!response.ok) throw new Error('Eroare la istoricul comenzilor.');
         return response.json();
     }
 };
