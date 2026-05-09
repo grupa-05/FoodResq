@@ -90,6 +90,11 @@ export default function LoginPage() {
                     >
                         {isLoading ? 'Se conectează...' : 'Intră în cont'}
                     </button>
+
+                    {/* Aici este scurtătura nouă adăugată pentru Register */}
+                    <p style={{ textAlign: 'center', fontSize: '0.9rem', color: '#6B7280', marginTop: '0.5rem' }}>
+                        Nu ai cont? <Link href="/register" style={{ color: '#059669', fontWeight: 'bold', textDecoration: 'none' }}>Înregistrează-te rapid acum!</Link>
+                    </p>
                 </form>
             </div>
         </div>
