@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiService } from '../../services/apiService';
+import {getListings} from "@/app/oferte/fetch_oferte";
 
 // Componenta de Card rămâne neschimbată, exact cum o aveai
 const ListingCard = ({ listing }) => {
@@ -81,11 +82,7 @@ export default function OfertePage() {
 
         // 2. Aducem ofertele
         const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://foodresq-backend.onrender.com';
-        fetch(`${baseUrl}/api/listings`, { headers: { 'Content-Type': 'application/json' } })
-            .then(res => {
-                if (!res.ok) throw new Error('Eroare la aducerea ofertelor.');
-                return res.json();
-            })
+        getListings(baseUrl)
             .then(data => { setOferte(data); setIsLoading(false); })
             .catch(err => { setError(err.message); setIsLoading(false); });
     }, []);
