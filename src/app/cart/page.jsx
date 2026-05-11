@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiService } from '../../services/apiService';
@@ -10,36 +10,44 @@ export default function CartPage() {
     const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
     const router = useRouter();
 
+    const fetchCart = useCallback(async () => {
+        try {
+            const data = await apiService.getCart();
+            console.log("Date primite in COS (F12):", data);
+            setCart(data);
+        } catch (err) {
+            console.error("Eroare la incarcare cos:", err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         const role = localStorage.getItem('role');
         if (!role || role !== 'USER') {
             router.push('/login');
             return;
         }
-
-        // Definire funcție async în interior
-        const loadData = async () => {
-            try {
-                const data = await apiService.getCart();
-                setCart(data);
-            } catch (err) {
-                console.error("Eroare la încărcare:", err.message);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        loadData();
-    }, [router]); // Am scos fetchCart din dependințe ca să nu mai țipe ESLint
+        fetchCart();
+    }, [router, fetchCart]);
 
     const handleRemove = async (itemId) => {
+        // FOARTE IMPORTANT: Verificam daca avem un ID valid
+        if(!itemId) {
+            alert("Eroare: ID-ul produsului lipseste.");
+            return;
+        }
+
+        if(!confirm("Sigur vrei să ștergi acest produs din coș?")) return;
+
         try {
             await apiService.removeFromCart(itemId);
-            // Reîncărcăm datele după ștergere
-            const updatedCart = await apiService.getCart();
-            setCart(updatedCart);
+            // Reincarcam cosul imediat dupa stergere
+            const updatedData = await apiService.getCart();
+            setCart(updatedData);
         } catch (err) {
-            alert("Nu am putut șterge produsul.");
+            console.error("Eroare stergere:", err);
+            alert("Eroare la ștergere: " + err.message);
         }
     };
 
@@ -50,44 +58,83 @@ export default function CartPage() {
             alert('Comandă finalizată cu succes!');
             router.push('/orders');
         } catch (err) {
-            alert(err.message);
+            alert("Eroare la checkout: " + err.message);
         } finally {
             setIsCheckoutLoading(false);
         }
     };
 
     return (
-        <div style={{ minHeight: '100vh', backgroundColor: '#F9FAFB', padding: '2rem', fontFamily: 'sans-serif' }}>
-            <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-                <Link href="/oferte" style={{ color: '#059669', textDecoration: 'none', fontWeight: 'bold' }}>← Înapoi la oferte</Link>
-                <h1 style={{ marginTop: '1rem', color: '#111827' }}>Coșul meu 🛒</h1>
+        <div style={{ minHeight: '100vh', backgroundColor: '#F3F4F6', padding: '40px 20px', fontFamily: 'sans-serif' }}>
+            <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                    <h1 style={{ fontSize: '2.2rem', fontWeight: '800', color: '#111827', margin: 0 }}>Coșul meu 🛒</h1>
+                    <Link href="/oferte" style={{ color: '#059669', textDecoration: 'none', fontWeight: 'bold', padding: '10px 20px', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                        ← Înapoi la cumpărături
+                    </Link>
+                </div>
 
                 {isLoading ? (
-                    <p style={{ textAlign: 'center', padding: '2rem' }}>Se încarcă coșul... ⏳</p>
+                    <div style={{ textAlign: 'center', padding: '50px' }}>Se încarcă...</div>
                 ) : (
-                    <div style={{ backgroundColor: '#fff', padding: '2rem', borderRadius: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-                        {cart?.items && cart.items.length > 0 ? (
-                            <>
-                                {cart.items.map(item => (
-                                    <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem 0', borderBottom: '1px solid #F3F4F6' }}>
-                                        <span>{item.listingTitle}</span>
-                                        <div>
-                                            <span style={{ fontWeight: 'bold', marginRight: '1rem' }}>{item.price} RON</span>
-                                            <button onClick={() => handleRemove(item.id)} style={{ color: '#DC2626', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Șterge</button>
+                    <div style={{ display: 'grid', gridTemplateColumns: cart?.items?.length > 0 ? '1fr 320px' : '1fr', gap: '25px' }}>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                            {cart?.items && cart.items.length > 0 ? (
+                                cart.items.map((item) => {
+                                    // REPARARE DATE: API-ul trimite detaliile in item.listing
+                                    const title = item.listing?.title || item.listingTitle || "Produs FoodResQ";
+                                    const price = item.listing?.price || item.price || 0;
+                                    const quantity = item.quantity || 1;
+                                    const imageUrl = item.listing?.imageUrl || "https://via.placeholder.com/150?text=Food";
+
+                                    return (
+                                        <div key={item.id} style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '18px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                                {/* AFISARE POZA */}
+                                                <img
+                                                    src={imageUrl}
+                                                    alt={title}
+                                                    style={{ width: '80px', height: '80px', borderRadius: '12px', objectFit: 'cover', backgroundColor: '#eee' }}
+                                                    onError={(e) => { e.target.src = "https://via.placeholder.com/150?text=Food"; }}
+                                                />
+                                                <div>
+                                                    <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#111827' }}>{title}</h3>
+                                                    <p style={{ margin: '4px 0 0 0', color: '#6B7280', fontSize: '0.9rem' }}>Bucăți: {quantity}</p>
+                                                </div>
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <div style={{ fontWeight: '800', fontSize: '1.2rem', color: '#059669', marginBottom: '8px' }}>{price} RON</div>
+                                                <button
+                                                    onClick={() => handleRemove(item.id)}
+                                                    style={{ color: '#EF4444', background: '#FEF2F2', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}
+                                                >
+                                                    Elimină
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                                <div style={{ textAlign: 'right', marginTop: '1.5rem', borderTop: '2px dashed #eee', paddingTop: '1rem' }}>
-                                    <h2 style={{ margin: 0 }}>Total: {cart.totalPrice} RON</h2>
+                                    );
+                                })
+                            ) : (
+                                <div style={{ textAlign: 'center', backgroundColor: '#fff', padding: '50px', borderRadius: '20px' }}>Coșul tău este gol.</div>
+                            )}
+                        </div>
+
+                        {cart?.items?.length > 0 && (
+                            <div style={{ backgroundColor: '#fff', padding: '25px', borderRadius: '20px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)', height: 'fit-content', position: 'sticky', top: '20px' }}>
+                                <h2 style={{ fontSize: '1.3rem', marginBottom: '20px' }}>Sumar</h2>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#6B7280' }}>
+                                    <span>Total produse:</span>
+                                    <span>{cart.items.length}</span>
                                 </div>
-                                <button onClick={handleCheckout} disabled={isCheckoutLoading} style={{ width: '100%', padding: '1rem', backgroundColor: '#111827', color: 'white', borderRadius: '0.75rem', border: 'none', fontWeight: 'bold', fontSize: '1.1rem', cursor: isCheckoutLoading ? 'wait' : 'pointer', marginTop: '2rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', paddingTop: '15px', borderTop: '2px solid #F3F4F6', fontWeight: '800', fontSize: '1.4rem' }}>
+                                    <span>Total de plată:</span>
+                                    <span>{cart.totalPrice || 0} RON</span>
+                                </div>
+                                <button onClick={handleCheckout} disabled={isCheckoutLoading} style={{ width: '100%', padding: '15px', backgroundColor: '#111827', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1.1rem', marginTop: '25px', cursor: 'pointer' }}>
                                     {isCheckoutLoading ? 'Se procesează...' : 'Finalizează Comanda'}
                                 </button>
-                            </>
-                        ) : (
-                            <div style={{ textAlign: 'center', padding: '1rem' }}>
-                                <p style={{ color: '#6B7280', marginBottom: '1.5rem' }}>Coșul tău este gol.</p>
-                                <Link href="/oferte" style={{ backgroundColor: '#059669', color: 'white', padding: '0.6rem 1.2rem', borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 'bold' }}>Vezi oferte</Link>
                             </div>
                         )}
                     </div>
