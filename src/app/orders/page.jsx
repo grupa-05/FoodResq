@@ -1,60 +1,34 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { apiService } from '../../services/apiService';
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const router = useRouter();
 
     useEffect(() => {
-        const fetchOrders = async () => {
-            try {
-                const data = await apiService.getMyOrders();
-                setOrders(data);
-            } catch (err) {
-                console.error(err.message);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        const role = localStorage.getItem('role');
-        if (!role || role !== 'USER') {
-            router.push('/login');
-            return;
-        }
-        fetchOrders();
-    }, [router]);
+        apiService.getMyOrders()
+            .then(data => setOrders(data || []))
+            .catch(err => console.error(err))
+            .finally(() => setIsLoading(false));
+    }, []);
 
     return (
-        <div style={{ minHeight: '100vh', backgroundColor: '#F9FAFB', padding: '2rem', fontFamily: 'sans-serif' }}>
-            <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-                <Link href="/oferte" style={{ color: '#059669', textDecoration: 'none', fontWeight: 'bold' }}>← Înapoi la oferte</Link>
-                <h1 style={{ marginTop: '1rem', color: '#111827' }}>Istoric Comenzi 📦</h1>
-
-                {isLoading ? <p>Se încarcă...</p> : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {orders.length > 0 ? orders.map(order => (
-                            <div key={order.id} style={{ backgroundColor: '#fff', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', pb: '0.5rem', mb: '1rem' }}>
-                                    <strong>Comanda #{order.id}</strong>
-                                    <span style={{ color: '#059669', fontWeight: 'bold' }}>{order.status}</span>
-                                </div>
-                                {order.items.map((item, idx) => (
-                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                                        <span>{item.quantity}x {item.listingTitle}</span>
-                                        <span>{item.subtotal} RON</span>
-                                    </div>
-                                ))}
-                                <div style={{ textAlign: 'right', marginTop: '1rem', fontWeight: 'bold', fontSize: '1.1rem' }}>Total: {order.totalAmount} RON</div>
-                            </div>
-                        )) : <p>Nu ai nicio comandă plasată încă.</p>}
-                    </div>
-                )}
-            </div>
+        <div style={{ padding: '40px', maxWidth: '800px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+            <h1>Istoric Comenzi 📦</h1>
+            {isLoading ? <p>Se încarcă...</p> : orders.map(order => (
+                <div key={order.id} style={{ border: '1px solid #ddd', padding: '20px', marginBottom: '20px', borderRadius: '10px' }}>
+                    <h3>Comanda #{order.id} - <span style={{color: '#059669'}}>{order.status}</span></h3>
+                    <p>Data: {new Date(order.orderDate).toLocaleDateString('ro-RO')}</p>
+                    <ul>
+                        {order.items?.map((item, i) => (
+                            <li key={i}>{item.quantity}x {item.listingTitle} - {item.subtotal} RON</li>
+                        ))}
+                    </ul>
+                    <hr />
+                    <p style={{ textAlign: 'right', fontWeight: 'bold' }}>Total: {order.totalAmount} RON</p>
+                </div>
+            ))}
         </div>
     );
 }
