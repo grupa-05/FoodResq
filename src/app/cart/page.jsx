@@ -87,7 +87,7 @@ export default function CartPage() {
                                             {/* Folosim exact câmpul price din documentație  */}
                                             <div style={{ fontWeight: '800', fontSize: '1.2rem', color: '#059669', marginBottom: '8px' }}>{item.price} RON</div>
                                             <button
-                                                onClick={() => handleRemove(item.id)}
+                                                onClick={() => handleRemove(item.id || item.cartItemId || item.itemId || item.listingId)}
                                                 style={{ color: '#EF4444', background: '#FEF2F2', border: 'none', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }}
                                             >
                                                 Elimină
