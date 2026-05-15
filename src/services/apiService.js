@@ -33,6 +33,10 @@ async function apiFetch(path, options = {}) {
 }
 
 export const apiService = {
+    createListing: (listingData) => apiFetch('/api/listings', {
+        method: 'POST',
+        body: JSON.stringify(listingData)
+    }),
     login: (email, password) => apiFetch('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password })
