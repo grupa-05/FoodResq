@@ -1,60 +1,98 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { apiService } from '../../services/apiService';
+import { PlusCircle, ArrowLeft, Utensils, Calendar, Tag, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import Link from 'next/link';
 
 export default function CreateListingPage() {
-    const router = useRouter();
-    const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
-        title: '', description: '', quantity: 1, price: 0,
-        type: 'SALE', category: 'PREPARED', expirationDate: ''
+        title: '',
+        description: '',
+        price: '',
+        quantity: '',
+        expiryDate: '',
+        category: 'FOOD',
+        type: 'SALE' // sau DONATION
     });
-
-    useEffect(() => {
-        const role = localStorage.getItem('role');
-        if (role !== 'BUSINESS') {
-            alert('Doar restaurantele pot accesa această pagină!');
-            router.push('/oferte');
-        }
-    }, [router]);
+    const [isLoading, setIsLoading] = useState(false);
+    const router = useRouter();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
+        const loadingToast = toast.loading('Se publică oferta...');
+
         try {
-            const payload = {
+            await apiService.createListing({
                 ...formData,
-                expirationDate: new Date(formData.expirationDate).toISOString(),
-                minimumPrice: 0, discountPercentage: 0, latitude: 44.4, longitude: 26.1
-            };
-            await apiService.createListing(payload);
-            alert('Ofertă publicată!');
+                price: parseFloat(formData.price),
+                quantity: parseInt(formData.quantity),
+                expiryDate: new Date(formData.expiryDate).toISOString()
+            });
+            toast.success('Ofertă publicată cu succes! 🍕', { id: loadingToast });
             router.push('/oferte');
         } catch (err) {
-            alert(err.message);
+            toast.error(err.message, { id: loadingToast });
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div style={{ minHeight: '100vh', backgroundColor: '#F9FAFB', padding: '2rem', fontFamily: 'sans-serif' }}>
-            <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: '#fff', padding: '2.5rem', borderRadius: '1.5rem', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-                <h1 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Adaugă Ofertă</h1>
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <input type="text" placeholder="Titlu Preparat" required onChange={e => setFormData({...formData, title: e.target.value})} style={{ padding: '0.8rem', borderRadius: '0.5rem', border: '1px solid #ddd' }} />
-                    <textarea placeholder="Descriere" onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '0.8rem', borderRadius: '0.5rem', border: '1px solid #ddd' }} />
-                    <input type="number" placeholder="Preț (RON)" required onChange={e => setFormData({...formData, price: e.target.value})} style={{ padding: '0.8rem', borderRadius: '0.5rem', border: '1px solid #ddd' }} />
-                    <input type="number" placeholder="Cantitate" required onChange={e => setFormData({...formData, quantity: e.target.value})} style={{ padding: '0.8rem', borderRadius: '0.5rem', border: '1px solid #ddd' }} />
-                    <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Data expirării:</label>
-                    <input type="datetime-local" required onChange={e => setFormData({...formData, expirationDate: e.target.value})} style={{ padding: '0.8rem', borderRadius: '0.5rem', border: '1px solid #ddd' }} />
-                    <button type="submit" disabled={isLoading} style={{ padding: '1rem', backgroundColor: '#059669', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>
-                        {isLoading ? 'Se publică...' : 'Publică Ofertă'}
-                    </button>
-                    <Link href="/oferte" style={{ textAlign: 'center', color: '#6B7280', textDecoration: 'none', fontSize: '0.9rem' }}>Anulează</Link>
-                </form>
+        <div style={{ minHeight: '100vh', backgroundColor: '#FCFDFB', padding: '40px 20px', fontFamily: 'Inter, sans-serif' }}>
+            <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+                <Link href="/oferte" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: '#6B7280', marginBottom: '2rem', fontWeight: '600' }}>
+                    <ArrowLeft size={18} /> Înapoi la oferte
+                </Link>
+
+                <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: '30px', boxShadow: '0 20px 40px rgba(0,0,0,0.04)', border: '1px solid #F3F4F6' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                        <div style={{ backgroundColor: '#E8F5E9', width: '60px', height: '60px', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#059669', margin: '0 auto 15px' }}>
+                            <PlusCircle size={32} />
+                        </div>
+                        <h1 style={{ fontSize: '2rem', fontWeight: '900', color: '#111827', margin: 0 }}>Adaugă Ofertă</h1>
+                        <p style={{ color: '#6B7280', marginTop: '10px' }}>Împarte mâncarea bună cu cei din jur.</p>
+                    </div>
+
+                    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <div>
+                            <label style={{ display: 'block', fontWeight: '700', marginBottom: '8px', color: '#374151' }}>Titlu Produs</label>
+                            <input required type="text" placeholder="Ex: Pizza Margherita" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})}
+                                   style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #E5E7EB', outlineColor: '#059669' }} />
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', fontWeight: '700', marginBottom: '8px', color: '#374151' }}>Descriere</label>
+                            <textarea rows="3" placeholder="Detalii despre produs..." value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})}
+                                      style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #E5E7EB', outlineColor: '#059669', resize: 'none' }} />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                            <div>
+                                <label style={{ display: 'block', fontWeight: '700', marginBottom: '8px', color: '#374151' }}>Preț (RON)</label>
+                                <input required type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})}
+                                       style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #E5E7EB', outlineColor: '#059669' }} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontWeight: '700', marginBottom: '8px', color: '#374151' }}>Porții</label>
+                                <input required type="number" value={formData.quantity} onChange={(e) => setFormData({...formData, quantity: e.target.value})}
+                                       style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #E5E7EB', outlineColor: '#059669' }} />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', fontWeight: '700', marginBottom: '8px', color: '#374151' }}>Valabil până la:</label>
+                            <input required type="datetime-local" value={formData.expiryDate} onChange={(e) => setFormData({...formData, expiryDate: e.target.value})}
+                                   style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #E5E7EB', outlineColor: '#059669' }} />
+                        </div>
+
+                        <button type="submit" disabled={isLoading} style={{ backgroundColor: '#111827', color: '#fff', border: 'none', padding: '16px', borderRadius: '14px', fontWeight: 'bold', fontSize: '1.1rem', cursor: isLoading ? 'wait' : 'pointer', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                            {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Publică Oferta'}
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     );
