@@ -13,32 +13,32 @@ export default function CartPage() {
     const fetchCart = useCallback(async () => {
         try {
             const data = await apiService.getCart();
-            // DEBUG: Verifică în consola browserului (F12) cum arată obiectul primit
-            console.log("Cart Data:", data);
             setCart(data);
         } catch (err) {
-            console.error("Fetch error:", err.message);
+            console.error("Eroare la încărcare coș:", err.message);
         } finally {
             setIsLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchCart();
-    }, [fetchCart]);
-
-    const handleRemove = async (itemId) => {
-        if (!itemId) {
-            alert("Eroare: ID-ul acestui element din coș nu a fost găsit.");
+        // Verificăm dacă utilizatorul are rolul corect (USER) conform documentației [cite: 4]
+        const role = localStorage.getItem('role');
+        if (!role || role !== 'USER') {
+            router.push('/login');
             return;
         }
+        fetchCart();
+    }, [router, fetchCart]);
+
+    const handleRemove = async (itemId) => {
+        if (!confirm("Sigur vrei să ștergi acest produs din coș?")) return;
 
         try {
             await apiService.removeFromCart(itemId);
-            fetchCart(); // Reîmprospătăm lista după ștergere
+            await fetchCart(); // Reîncărcăm coșul după ștergere
         } catch (err) {
-            // Dacă primești 405 aici, e de la backend (CORS sau rute nepermise)
-            alert("Nu s-a putut șterge: " + err.message);
+            alert(err.message);
         }
     };
 
@@ -46,7 +46,7 @@ export default function CartPage() {
         setIsCheckoutLoading(true);
         try {
             await apiService.checkout();
-            alert('Comandă reușită!');
+            alert('Comandă finalizată cu succes!');
             router.push('/orders');
         } catch (err) {
             alert(err.message);
@@ -56,65 +56,70 @@ export default function CartPage() {
     };
 
     return (
-        <div style={{ minHeight: '100vh', backgroundColor: '#F9FAFB', padding: '40px 20px', fontFamily: 'sans-serif' }}>
+        <div style={{ minHeight: '100vh', backgroundColor: '#F3F4F6', padding: '40px 20px', fontFamily: 'sans-serif' }}>
             <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
-                    <h1 style={{ margin: 0 }}>Coșul meu 🛒</h1>
-                    <Link href="/oferte" style={{ textDecoration: 'none', color: '#059669', fontWeight: 'bold' }}>← Înapoi la oferte</Link>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                    <h1 style={{ margin: 0, fontSize: '2.2rem', color: '#111827', fontWeight: '800' }}>Coșul meu 🛒</h1>
+                    <Link href="/oferte" style={{ textDecoration: 'none', color: '#059669', fontWeight: 'bold', backgroundColor: '#fff', padding: '8px 16px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                        ← Înapoi la cumpărături
+                    </Link>
                 </div>
 
-                {isLoading ? <p>Se încarcă produsele...</p> : (
-                    <div style={{ display: 'grid', gridTemplateColumns: cart?.items?.length > 0 ? '1fr 300px' : '1fr', gap: '20px' }}>
+                {isLoading ? (
+                    <div style={{ textAlign: 'center', padding: '50px', color: '#6B7280' }}>Se încarcă produsele... ⏳</div>
+                ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: cart?.items?.length > 0 ? '1fr 320px' : '1fr', gap: '25px' }}>
 
-                        {/* LISTA PRODUSE */}
+                        {/* LISTA DE PRODUSE DIN COȘ */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             {cart?.items && cart.items.length > 0 ? (
-                                cart.items.map((item) => {
-                                    // REPARARE DATE: Căutăm titlul și prețul în item SAU în item.listing
-                                    const title = item.listing?.title || item.listingTitle || "Produs FoodResQ";
-                                    const price = item.listing?.price || item.price || 0;
-                                    const quantity = item.quantity || 1;
-
-                                    return (
-                                        <div key={item.id} style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '15px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                                                <div style={{ width: '50px', height: '50px', backgroundColor: '#F3F4F6', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>🥘</div>
-                                                <div>
-                                                    <h3 style={{ margin: 0, fontSize: '1rem' }}>{title}</h3>
-                                                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#6B7280' }}>Cantitate: {quantity}</p>
-                                                </div>
-                                            </div>
-                                            <div style={{ textAlign: 'right' }}>
-                                                <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#059669', marginBottom: '5px' }}>{price} RON</div>
-                                                <button
-                                                    onClick={() => handleRemove(item.id)}
-                                                    style={{ color: '#EF4444', background: '#FEF2F2', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}
-                                                >
-                                                    Elimină
-                                                </button>
+                                cart.items.map((item) => (
+                                    <div key={item.id} style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                            <div style={{ width: '60px', height: '60px', backgroundColor: '#F3F4F6', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' }}>🥘</div>
+                                            <div>
+                                                {/* Folosim exact câmpurile din documentație: listingTitle și quantity  */}
+                                                <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#111827' }}>{item.listingTitle}</h3>
+                                                <p style={{ margin: '4px 0 0 0', color: '#6B7280', fontSize: '0.9rem' }}>Cantitate: {item.quantity}</p>
                                             </div>
                                         </div>
-                                    );
-                                })
-                            ) : <p>Coșul este gol.</p>}
+                                        <div style={{ textAlign: 'right' }}>
+                                            {/* Folosim exact câmpul price din documentație  */}
+                                            <div style={{ fontWeight: '800', fontSize: '1.2rem', color: '#059669', marginBottom: '8px' }}>{item.price} RON</div>
+                                            <button
+                                                onClick={() => handleRemove(item.id)}
+                                                style={{ color: '#EF4444', background: '#FEF2F2', border: 'none', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }}
+                                            >
+                                                Elimină
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div style={{ textAlign: 'center', backgroundColor: '#fff', padding: '60px', borderRadius: '16px', color: '#6B7280' }}>
+                                    <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🧺</div>
+                                    Coșul tău este gol.
+                                </div>
+                            )}
                         </div>
 
-                        {/* SUMAR */}
+                        {/* SUMARUL COMENZII */}
                         {cart?.items?.length > 0 && (
-                            <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '15px', height: 'fit-content', boxShadow: '0 5px 15px rgba(0,0,0,0.05)' }}>
-                                <h2 style={{ fontSize: '1.2rem', marginTop: 0 }}>Sumar</h2>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                                    <span>Subtotal:</span>
-                                    <span style={{ fontWeight: 'bold' }}>{cart.totalPrice || 0} RON</span>
+                            <div style={{ backgroundColor: '#fff', padding: '25px', borderRadius: '16px', height: 'fit-content', position: 'sticky', top: '20px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
+                                <h2 style={{ fontSize: '1.3rem', marginTop: 0, color: '#111827' }}>Sumar Comandă</h2>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', color: '#4B5563' }}>
+                                    <span>Total Produse:</span>
+                                    <span>{cart.totalItems}</span>
                                 </div>
-                                <div style={{ borderTop: '2px solid #F3F4F6', paddingTop: '10px', marginTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 'bold' }}>
-                                    <span>Total:</span>
-                                    <span>{cart.totalPrice || 0} RON</span>
+                                <div style={{ borderTop: '2px solid #F3F4F6', paddingTop: '15px', marginTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '1.3rem', fontWeight: '800', color: '#111827' }}>
+                                    <span>Total de plată:</span>
+                                    {/* Folosim totalPrice din documentație  */}
+                                    <span>{cart.totalPrice} RON</span>
                                 </div>
                                 <button
                                     onClick={handleCheckout}
                                     disabled={isCheckoutLoading}
-                                    style={{ width: '100%', padding: '12px', backgroundColor: '#111827', color: 'white', border: 'none', borderRadius: '8px', marginTop: '20px', fontWeight: 'bold', cursor: 'pointer' }}
+                                    style={{ width: '100%', padding: '14px', backgroundColor: '#111827', color: 'white', border: 'none', borderRadius: '10px', marginTop: '25px', fontWeight: 'bold', fontSize: '1rem', cursor: isCheckoutLoading ? 'wait' : 'pointer' }}
                                 >
                                     {isCheckoutLoading ? 'Se procesează...' : 'Finalizează Comanda'}
                                 </button>

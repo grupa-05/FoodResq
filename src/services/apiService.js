@@ -1,90 +1,100 @@
+// Preluăm URL-ul de bază din variabilele de mediu, conform documentației [cite: 2]
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://foodresq-backend.onrender.com';
 
-const getAuthHeaders = () => {
+// Funcție centralizată pentru a face request-uri (exact cum cere documentația)
+async function apiFetch(path, options = {}) {
     let token = null;
     if (typeof window !== 'undefined') {
         token = localStorage.getItem('token');
     }
-    return {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-    };
-};
+
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            ...(options.headers || {})
+        }
+    });
+
+    // Tratarea erorilor conform Secțiunii 9 din documentație
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+
+        if (response.status === 401) {
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('token');
+                localStorage.removeItem('role');
+                window.location.href = '/login';
+            }
+            throw new Error('Sesiune expirată. Te rog să te autentifici din nou.');
+        }
+        if (response.status === 403) throw new Error('Nu ai permisiunea pentru această acțiune.');
+        if (response.status === 404) throw new Error('Resursa nu a fost găsită.');
+        if (response.status === 409) throw new Error(errorData.message || 'Conflict de date.');
+
+        throw new Error(errorData.message || 'A apărut o eroare. Încearcă din nou.');
+    }
+
+    // Returnăm JSON doar dacă răspunsul are conținut (pentru DELETE/204 nu avem JSON)
+    if (response.status !== 204) {
+        return response.json();
+    }
+    return null;
+}
 
 export const apiService = {
+    // === AUTH ===
     login: async (email, password) => {
-        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        return apiFetch('/api/auth/login', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
         });
-        if (!response.ok) throw new Error('Email sau parolă incorecte!');
-        return response.json();
     },
 
     register: async (name, email, password, role) => {
-        const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        return apiFetch('/api/auth/register', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, email, password, role })
         });
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Eroare la crearea contului!');
-        }
-        return response.json();
+    },
+
+    // === LISTINGS (OFERTE) ===
+    getListings: async () => {
+        return apiFetch('/api/listings', { method: 'GET' });
     },
 
     createListing: async (listingData) => {
-        const response = await fetch(`${API_BASE_URL}/api/listings`, {
+        return apiFetch('/api/listings', {
             method: 'POST',
-            headers: getAuthHeaders(),
             body: JSON.stringify(listingData)
         });
-        if (!response.ok) throw new Error('Eroare la crearea ofertei.');
-        return response.json();
     },
 
-    deleteListing: async (id) => {
-        const response = await fetch(`${API_BASE_URL}/api/listings/${id}`, {
-            method: 'DELETE',
-            headers: getAuthHeaders()
-        });
-        if (!response.ok) throw new Error('Nu poți șterge această ofertă.');
-    },
-
+    // === CART (COȘ) ===
     getCart: async () => {
-        const response = await fetch(`${API_BASE_URL}/api/cart`, { method: 'GET', headers: getAuthHeaders() });
-        if (!response.ok) throw new Error('Eroare la încărcarea coșului.');
-        return response.json();
+        return apiFetch('/api/cart', { method: 'GET' });
     },
 
     addToCart: async (listingId, quantity = 1) => {
-        const response = await fetch(`${API_BASE_URL}/api/cart/items`, {
+        return apiFetch('/api/cart/items', {
             method: 'POST',
-            headers: getAuthHeaders(),
             body: JSON.stringify({ listingId, quantity })
         });
-        if (!response.ok) throw new Error('Eroare la adăugarea în coș.');
     },
 
     removeFromCart: async (itemId) => {
-        const response = await fetch(`${API_BASE_URL}/api/cart/items/${itemId}`, {
-            method: 'DELETE',
-            headers: getAuthHeaders()
+        return apiFetch(`/api/cart/items/${itemId}`, {
+            method: 'DELETE'
         });
-        if (!response.ok) throw new Error('Eroare la ștergerea din coș.');
     },
 
     checkout: async () => {
-        const response = await fetch(`${API_BASE_URL}/api/cart/checkout`, { method: 'POST', headers: getAuthHeaders() });
-        if (!response.ok) throw new Error('Eroare la checkout.');
-        return response.json();
+        return apiFetch('/api/cart/checkout', { method: 'POST' });
     },
 
+    // === ORDERS (COMENZI) ===
     getMyOrders: async () => {
-        const response = await fetch(`${API_BASE_URL}/api/orders/my`, { method: 'GET', headers: getAuthHeaders() });
-        if (!response.ok) throw new Error('Eroare la istoricul comenzilor.');
-        return response.json();
+        return apiFetch('/api/orders/my', { method: 'GET' });
     }
 };
