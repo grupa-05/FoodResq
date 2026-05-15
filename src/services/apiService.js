@@ -38,7 +38,11 @@ async function apiFetch(path, options = {}) {
 
     // Returnăm JSON doar dacă răspunsul are conținut (pentru DELETE/204 nu avem JSON)
     if (response.status !== 204) {
-        return response.json();
+        // Citim răspunsul ca text brut prima dată
+        const text = await response.text();
+
+        // Dacă avem text, îl facem JSON. Dacă e gol, returnăm null fără să crape.
+        return text ? JSON.parse(text) : null;
     }
     return null;
 }
